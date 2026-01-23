@@ -42,6 +42,7 @@ class ManageUserView(generics.RetrieveUpdateAPIView):
     permission_classes = (IsAuthenticated,)
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
+
     def get_object(self):
         return self.request.user
 
@@ -49,6 +50,7 @@ class ManageUserView(generics.RetrieveUpdateAPIView):
 class VerifyEmailAPIView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
+
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

@@ -12,6 +12,7 @@ class Country(models.Model):
 
     class Meta:
         ordering = ["name"]
+        verbose_name_plural = "Countries"
 
     def __str__(self):
         return self.name
@@ -27,6 +28,7 @@ class City(models.Model):
 
     class Meta:
         unique_together = ("name", "country")
+        verbose_name_plural = "Cities"
 
     def __str__(self):
         return f"{self.name} - {self.country}"
