@@ -6,7 +6,7 @@ from airport_service.models import (
     City,
     Route,
     AirplaneType,
-    Airplane,
+    Airplane, Crew,
 )
 
 
@@ -179,4 +179,25 @@ class AirplaneImageSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "image"
+        )
+
+
+class CrewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Crew
+        fields = (
+            "id",
+            "first_name",
+            "last_name"
+        )
+
+
+class CrewListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Crew
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+            "full_name"
         )

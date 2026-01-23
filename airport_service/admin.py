@@ -6,7 +6,8 @@ from airport_service.models import (
     Country,
     Route,
     Airplane,
-    AirplaneType
+    AirplaneType,
+    Crew,
 )
 
 admin.site.register(Airport)
@@ -15,3 +16,4 @@ admin.site.register(Country)
 admin.site.register(Route)
 admin.site.register(Airplane)
 admin.site.register(AirplaneType)
+admin.site.register(Crew)
