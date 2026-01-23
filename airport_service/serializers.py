@@ -3,7 +3,10 @@ from rest_framework import serializers
 from airport_service.models import (
     Country,
     Airport,
-    City, Route,
+    City,
+    Route,
+    AirplaneType,
+    Airplane,
 )
 
 
@@ -130,4 +133,50 @@ class RouteRetrieveSerializer(serializers.ModelSerializer):
             "id",
             "source",
             "destination",
+        )
+
+
+class AirplaneTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AirplaneType
+        fields = "__all__"
+
+
+class AirplaneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Airplane
+        fields = (
+            "id",
+            "name",
+            "rows",
+            "seats_in_row",
+            "airplane_type"
+        )
+
+
+class AirplaneListSerializer(serializers.ModelSerializer):
+    airplane_type = serializers.SlugRelatedField(
+        many=False,
+        read_only=True,
+        slug_field="name",
+    )
+    class Meta:
+        model = Airplane
+        fields = (
+            "id",
+            "name",
+            "rows",
+            "seats_in_row",
+            "airplane_type",
+            "capacity",
+            "image"
+        )
+
+
+class AirplaneImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Airplane
+        fields = (
+            "id",
+            "image"
         )

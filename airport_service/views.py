@@ -1,13 +1,26 @@
 from rest_framework import viewsets
 
-from airport_service.models import Country, City, Airport, Route
 from airport_service.permissions import IsAdminOrIfAuthenticatedReadOnly
+from airport_service.models import (
+    Country,
+    City,
+    Airport,
+    Route,
+    Airplane,
+    AirplaneType
+)
 from airport_service.serializers import (
     CountrySerializer,
     CitySerializer,
     AirportSerializer,
     AirportListSerializer,
-    CityListSerializer, RouteSerializer, RouteListSerializer, RouteRetrieveSerializer
+    CityListSerializer,
+    RouteSerializer,
+    RouteListSerializer,
+    RouteRetrieveSerializer,
+    AirplaneListSerializer,
+    AirplaneSerializer,
+    AirplaneTypeSerializer
 )
 
 
@@ -50,3 +63,19 @@ class RouteViewSet(viewsets.ModelViewSet):
         if self.action == "retrieve":
             return RouteRetrieveSerializer
         return RouteSerializer
+
+
+class AirplaneViewSet(viewsets.ModelViewSet):
+    queryset = Airplane.objects.all()
+    serializer_class = AirplaneSerializer
+    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
+
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve"):
+            return AirplaneListSerializer
+        return AirplaneSerializer
+
+
+class AirplaneTypeViewSet(viewsets.ModelViewSet):
+    queryset = AirplaneType.objects.all()
+    serializer_class = AirplaneTypeSerializer

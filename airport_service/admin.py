@@ -4,10 +4,14 @@ from airport_service.models import (
     Airport,
     City,
     Country,
-    Route
+    Route,
+    Airplane,
+    AirplaneType
 )
 
 admin.site.register(Airport)
 admin.site.register(City)
 admin.site.register(Country)
 admin.site.register(Route)
+admin.site.register(Airplane)
+admin.site.register(AirplaneType)
