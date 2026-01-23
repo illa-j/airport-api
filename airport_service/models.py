@@ -141,7 +141,11 @@ class Flight(models.Model):
         on_delete=models.PROTECT,
         related_name="flights"
     )
-    airplane = models.ForeignKey(Airplane, on_delete=models.PROTECT)
+    airplane = models.ForeignKey(
+        Airplane,
+        on_delete=models.PROTECT,
+        related_name="flights"
+    )
     departure_time = models.DateTimeField()
     arrival_time = models.DateTimeField()
 

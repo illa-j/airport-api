@@ -6,7 +6,7 @@ from airport_service.models import (
     City,
     Route,
     AirplaneType,
-    Airplane, Crew,
+    Airplane, Crew, Flight,
 )
 
 
@@ -201,3 +201,48 @@ class CrewListSerializer(serializers.ModelSerializer):
             "last_name",
             "full_name"
         )
+
+
+class FlightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Flight
+        fields = (
+            "id",
+            "route",
+            "airplane",
+            "departure_time",
+            "arrival_time"
+        )
+
+
+class FlightListSerializer(serializers.ModelSerializer):
+    route_from = serializers.CharField(
+        source="route.source.city.name",
+        read_only=True,
+    )
+    route_to = serializers.CharField(
+        source="route.destination.city.name",
+        read_only=True,
+    )
+    airplane = serializers.SlugRelatedField(
+        many=False,
+        read_only=True,
+        slug_field="name",
+    )
+
+    class Meta:
+        model = Flight
+        fields = (
+            "id",
+            "route_from",
+            "route_to",
+            "airplane",
+            "departure_time",
+            "arrival_time"
+        )
+
+
+
+class FlightRetrieveSerializer(FlightSerializer):
+    route = RouteRetrieveSerializer(many=False, read_only=True)
+    airplane = AirplaneListSerializer(many=False, read_only=True)
