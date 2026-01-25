@@ -1,21 +1,25 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
-from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from rest_framework import generics, status
+from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from user.models import EmailVerificationToken
+from user.models import EmailVerificationToken, PasswordResetToken
 from user.serializers import (
     UserSerializer,
-    VerifyEmailSerializer
+    VerifyEmailSerializer,
+    ConfirmPasswordChangeSerializer,
+    PasswordChangeSerializer,
 )
 
 
-class CreateUserView(generics.CreateAPIView):
+class CreateUserView(CreateAPIView):
     serializer_class = UserSerializer
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
@@ -24,21 +28,62 @@ class CreateUserView(generics.CreateAPIView):
         user = serializer.save()
 
         token = EmailVerificationToken.objects.create(user=user)
-        verify_url = (
-            f"{settings.FRONTEND_URL}/verify-email"
-            f"?token={token.token}"
+
+        verify_link = (
+            self.request.build_absolute_uri(reverse("user:verify_email"))
+            + f"?token={token.token}"
         )
 
         send_mail(
             subject="Verify your email",
-            message=f"Click to verify: {verify_url}",
+            message=f"Click to verify: {verify_link}",
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
         )
 
-class ManageUserView(generics.RetrieveUpdateAPIView):
+
+class ChangePasswordView(CreateAPIView):
+    serializer_class = PasswordChangeSerializer
+    permission_classes = (IsAuthenticated,)
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            user = get_user_model().objects.get(email=request.data["email"])
+            raw_password = serializer.validated_data["password"]
+            password_hash = make_password(raw_password)
+
+            token = PasswordResetToken.objects.create(
+                user=user,
+                password_hash=password_hash,
+            )
+
+            confirm_link = (
+                request.build_absolute_uri(reverse("user:confirm_password_change"))
+                + f"?token={token.token}"
+            )
+
+            send_mail(
+                subject="Confirm password change",
+                message=f"Click to confirm password change: {confirm_link}",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+            )
+        except get_user_model().DoesNotExist:
+            pass
+
+        return Response(
+            {"detail": "If the email exists, a confirmation email has been sent"},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ManageUserView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
-    authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated,)
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
@@ -49,25 +94,30 @@ class ManageUserView(generics.RetrieveUpdateAPIView):
 
 class VerifyEmailAPIView(APIView):
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "auth"
+    throttle_scope = "token_verification"
 
-    def post(self, request):
-        serializer = VerifyEmailSerializer(data=request.data)
+    def get(self, request):
+        serializer = VerifyEmailSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
-        token = serializer.validated_data["token"]
-
-        token_obj = get_object_or_404(
-            EmailVerificationToken, token=token
-        )
-
-        user = token_obj.user
-        user.is_active = True
-        user.save()
-
-        token_obj.delete()
+        serializer.save()
 
         return Response(
-            {"detail": "Email verified successfully"},
-            status=status.HTTP_200_OK
+            {"detail": "Email verified successfully"}, status=status.HTTP_200_OK
+        )
+
+
+class ConfirmPasswordChangeView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "token_verification"
+
+    def get(self, request):
+        serializer = ConfirmPasswordChangeSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        return Response(
+            {"detail": "Password changed successfully"},
+            status=status.HTTP_200_OK,
         )

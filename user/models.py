@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import (
@@ -7,6 +8,7 @@ from django.contrib.auth.models import (
 )
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 
@@ -51,12 +53,28 @@ class User(AbstractUser):
 
 class EmailVerificationToken(models.Model):
     user = models.ForeignKey(
-        get_user_model(),
-        on_delete=models.CASCADE,
-        related_name="email_tokens"
+        get_user_model(), on_delete=models.CASCADE, related_name="email_tokens"
     )
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def is_expired(self):
+        return self.created_at < timezone.now() - timedelta(hours=1)
+
     def __str__(self):
         return f"{self.user.email}"
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    password_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    def is_expired(self):
+        return self.created_at < timezone.now() - timedelta(hours=1)
