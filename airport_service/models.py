@@ -21,9 +21,7 @@ class Country(models.Model):
 class City(models.Model):
     name = models.CharField(max_length=100)
     country = models.ForeignKey(
-        Country,
-        on_delete=models.PROTECT,
-        related_name="cities"
+        Country, on_delete=models.PROTECT, related_name="cities"
     )
 
     class Meta:
@@ -31,37 +29,29 @@ class City(models.Model):
         verbose_name_plural = "Cities"
 
     def __str__(self):
-        return f"{self.name} - {self.country}"
+        return self.name
 
 
 class Airport(models.Model):
     name = models.CharField(max_length=100)
-    city = models.ForeignKey(
-        City,
-        on_delete=models.PROTECT,
-        related_name="airports"
-    )
+    city = models.ForeignKey(City, on_delete=models.PROTECT, related_name="airports")
     code = models.CharField(
         max_length=4,
         unique=True,
         default="XXX",
-        help_text="IATA (3) or ICAO (4) airport code"
+        help_text="IATA (3) or ICAO (4) airport code",
     )
 
     def __str__(self):
-        return f"{self.code} - {self.name}, {self.city}"
+        return f"{self.name} - {self.code}"
 
 
 class Route(models.Model):
     source = models.ForeignKey(
-        Airport,
-        on_delete=models.PROTECT,
-        related_name="routes_from"
+        Airport, on_delete=models.PROTECT, related_name="routes_from"
     )
     destination = models.ForeignKey(
-        Airport,
-        on_delete=models.PROTECT,
-        related_name="routes_to"
+        Airport, on_delete=models.PROTECT, related_name="routes_to"
     )
     distance = models.PositiveIntegerField()
 
@@ -72,11 +62,23 @@ class Route(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.source.name} -> {self.destination.name}: {self.distance}km"
+        return f"Distance {self.distance}km: Airport {self.source_id} to {self.destination_id}"
+
+    @staticmethod
+    def validate_routes(source_code, destination_code, error_to_raise):
+        if source_code == destination_code:
+            raise error_to_raise("Source and destination must be different")
 
     def clean(self):
-        if self.source == self.destination:
-            raise ValidationError("Source and destination must be different")
+        Route.validate_routes(
+            self.source.code,
+            self.destination.code,
+            ValidationError,
+        )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super(Route, self).save(*args, **kwargs)
 
 
 class AirplaneType(models.Model):
@@ -98,14 +100,9 @@ class Airplane(models.Model):
     rows = models.PositiveIntegerField()
     seats_in_row = models.PositiveIntegerField()
     airplane_type = models.ForeignKey(
-        AirplaneType,
-        on_delete=models.PROTECT,
-        related_name="airplanes"
+        AirplaneType, on_delete=models.PROTECT, related_name="airplanes"
     )
-    image = models.ImageField(
-        null=True,
-        upload_to=airplane_image_file_path
-    )
+    image = models.ImageField(blank=True, null=True, upload_to=airplane_image_file_path)
 
     @property
     def capacity(self) -> int:
@@ -118,9 +115,19 @@ class Airplane(models.Model):
     def __str__(self):
         return f"{self.name} - {self.rows}:{self.seats_in_row}"
 
+    @staticmethod
+    def validate_seats_rows(rows, seats_in_row, error_to_raise):
+        if rows is not None and rows < 1:
+            raise error_to_raise("Rows must be greater than zero.")
+        if seats_in_row is not None and seats_in_row < 1:
+            raise error_to_raise("Seats must be greater than zero.")
+
     def clean(self):
-        if self.rows < 1 or self.seats_in_row < 1:
-            raise ValidationError("Rows and seats must be greater than zero.")
+        Airplane.validate_seats_rows(self.rows, self.seats_in_row, ValidationError)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super(Airplane, self).save(*args, **kwargs)
 
 
 class Crew(models.Model):
@@ -136,22 +143,12 @@ class Crew(models.Model):
 
 
 class Flight(models.Model):
-    route = models.ForeignKey(
-        Route,
-        on_delete=models.PROTECT,
-        related_name="flights"
-    )
+    route = models.ForeignKey(Route, on_delete=models.PROTECT, related_name="flights")
     airplane = models.ForeignKey(
-        Airplane,
-        on_delete=models.PROTECT,
-        related_name="flights"
+        Airplane, on_delete=models.PROTECT, related_name="flights"
     )
     departure_time = models.DateTimeField()
     arrival_time = models.DateTimeField()
-
-    def clean(self):
-        if self.departure_time >= self.arrival_time:
-            raise ValidationError("Departure time must be before arrival time")
 
     class Meta:
         ordering = ["-departure_time"]
@@ -159,13 +156,23 @@ class Flight(models.Model):
     def __str__(self):
         return f"{self.route} {self.airplane.name} {self.departure_time}: {self.arrival_time}"
 
+    @staticmethod
+    def validate_times(departure_time, arrival_time, error_to_raise):
+        if departure_time >= arrival_time:
+            raise error_to_raise("Departure time must be before arrival time")
+
+    def clean(self):
+        Flight.validate_times(self.departure_time, self.arrival_time, ValidationError)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(
-        get_user_model(),
-        on_delete=models.PROTECT,
-        related_name="orders"
+        get_user_model(), on_delete=models.PROTECT, related_name="orders"
     )
 
     class Meta:
@@ -176,16 +183,8 @@ class Order(models.Model):
 
 
 class Ticket(models.Model):
-    flight = models.ForeignKey(
-        Flight,
-        on_delete=models.PROTECT,
-        related_name="tickets"
-    )
-    order = models.ForeignKey(
-        Order,
-        on_delete=models.PROTECT,
-        related_name="tickets"
-    )
+    flight = models.ForeignKey(Flight, on_delete=models.PROTECT, related_name="tickets")
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="tickets")
     row = models.PositiveIntegerField()
     seat = models.PositiveIntegerField()
 
@@ -232,6 +231,4 @@ class Ticket(models.Model):
         ordering = ["row", "seat"]
 
     def __str__(self):
-        return (
-            f"{str(self.flight)} (row: {self.row}, seat: {self.seat})"
-        )
+        return f"{str(self.flight)} (row: {self.row}, seat: {self.seat})"
